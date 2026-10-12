@@ -1,101 +1,113 @@
-import Image from "next/image";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { CalendarClock, Package, Plus, ScrollText, Send } from "lucide-react";
+import { Shell } from "@/components/Shell";
+import { PlatformStatus } from "@/components/PlatformStatus";
+import { Card, StatCard } from "@/components/ui/Card";
+import { PlatformBadge } from "@/components/ui/Badge";
+import { getDb } from "@/lib/db";
+import { guardPage, hasAnyUserSync } from "@/lib/guards";
+import { formatWIB, greeting, relativeTime } from "@/lib/format";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Dashboard() {
+  if (!hasAnyUserSync()) redirect("/setup");
+  const username = await guardPage();
+  const db = getDb();
+
+  const totalProducts = (db.prepare("SELECT COUNT(*) c FROM products").get() as { c: number }).c;
+  const readyContents = (db.prepare("SELECT COUNT(*) c FROM contents WHERE status = 'ready'").get() as { c: number }).c;
+  const upcoming = (db.prepare("SELECT COUNT(*) c FROM schedules WHERE status = 'scheduled'").get() as { c: number }).c;
+  const sentWeek = (
+    db
+      .prepare("SELECT COUNT(*) c FROM schedules WHERE status = 'sent' AND created_at >= datetime('now', '-7 days')")
+      .get() as { c: number }
+  ).c;
+
+  const spark = [1, 2, 1, 3, 2, 4, sentWeek];
+  const nextSchedules = db
+    .prepare(
+      `SELECT s.id, s.publish_at, s.platforms, p.name AS product_name
+       FROM schedules s JOIN contents c ON c.id = s.content_id JOIN products p ON p.id = c.product_id
+       WHERE s.status = 'scheduled' ORDER BY s.publish_at ASC LIMIT 5`
+    )
+    .all() as { id: number; publish_at: string; platforms: string; product_name: string }[];
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <Shell title="Dashboard" username={username}>
+      <div className="mesh-bg -mx-4 -mt-5 px-4 pb-6 pt-6">
+        <h2 className="text-2xl font-black sm:text-3xl">
+          {greeting()}, {username} 👋
+        </h2>
+        <p className="mt-1 text-sm text-muted">Ringkasan performa affiliate kamu hari ini.</p>
+        <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatCard icon={<Package size={16} />} label="Produk" value={totalProducts} spark={spark} />
+          <StatCard icon={<ScrollText size={16} />} label="Konten siap" value={readyContents} spark={spark} />
+          <StatCard icon={<CalendarClock size={16} />} label="Terjadwal" value={upcoming} spark={spark} />
+          <StatCard icon={<Send size={16} />} label="Terkirim 7 hari" value={sentWeek} spark={spark} />
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+      </div>
+
+      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+        <Card className="p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="font-bold">Jadwal terdekat</h3>
+            <Link href="/schedules" className="text-sm font-semibold text-accent1 hover:underline">
+              Lihat semua
+            </Link>
+          </div>
+          {nextSchedules.length === 0 ? (
+            <p className="text-sm text-muted">Belum ada jadwal. Buat konten lalu jadwalkan.</p>
+          ) : (
+            <ul className="space-y-3">
+              {nextSchedules.map((s) => {
+                let plats: string[] = [];
+                try {
+                  plats = JSON.parse(s.platforms);
+                } catch {
+                  plats = [];
+                }
+                return (
+                  <li key={s.id} className="flex items-center gap-3 rounded-[12px] border border-border p-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold">{s.product_name}</p>
+                      <p className="tnum text-xs text-muted">
+                        {formatWIB(s.publish_at)} WIB · {relativeTime(s.publish_at)}
+                      </p>
+                    </div>
+                    <div className="flex gap-1">
+                      {plats.map((p) => (
+                        <PlatformBadge key={p} platform={p} />
+                      ))}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Card>
+
+        <div className="space-y-4">
+          <Card className="p-5">
+            <h3 className="mb-3 font-bold">Status platform</h3>
+            <PlatformStatus />
+          </Card>
+          <Card className="card-hover p-5">
+            <Link href="/products" className="flex items-center gap-3">
+              <span className="grad-accent flex h-11 w-11 items-center justify-center rounded-[12px] text-white">
+                <Plus size={20} />
+              </span>
+              <span>
+                <span className="block font-bold">+ Produk baru</span>
+                <span className="block text-sm text-muted">Tambah lalu generate konten AI ⚡</span>
+              </span>
+            </Link>
+          </Card>
+        </div>
+      </div>
+    </Shell>
   );
 }
+
+

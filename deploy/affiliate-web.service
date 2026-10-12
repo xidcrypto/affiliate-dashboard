@@ -1,0 +1,21 @@
+[Unit]
+Description=Affiliate Poster Dashboard
+After=network.target
+
+[Service]
+User=affiliate
+Group=affiliate
+WorkingDirectory=/opt/affiliate-web
+EnvironmentFile=/opt/affiliate-web/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/opt/affiliate-web/data /opt/affiliate-web/.next/cache
+
+[Install]
+WantedBy=multi-user.target
